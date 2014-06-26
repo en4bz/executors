@@ -1,0 +1,21 @@
+#ifndef EXECUTOR_HPP
+#define EXECUTOR_HPP
+
+#include <functional>
+
+namespace std {
+namespace experimental {
+    class executor {
+    public:
+        virtual void add(function<void()>) = 0;
+        virtual ~executor() {};
+    };
+
+    class scheduled_executor : public executor {
+    public:
+        virtual void add_at(function<void()>) = 0;
+        virtual void add_after(function<void()>) = 0;
+    };
+}
+}
+#endif

@@ -1,0 +1,77 @@
+#ifndef THREAD_POOL_HPP
+#define THREAD_POOL_HPP
+
+#include <experimental/executor>
+#include <queue>
+#include <mutex>
+#include <atomic>
+#include <thread>
+#include <vector>
+#include <stdexcept>
+#include <functional>
+#include <condition_variable>
+
+namespace std {
+namespace experimental {
+
+class thread_pool : public executor {
+    mutable mutex _qmutex;
+    condition_variable _qempty;
+    atomic<bool> _active;
+
+    vector<thread> _workers;
+    queue<function<void()>> _tasks;
+
+public:
+    thread_pool (size_t num_threads = thread::hardware_concurrency() )
+        : _active(true)
+    {
+        for(size_t i = 0; i < num_threads; i++){
+            this->_workers.emplace_back(thread(&thread_pool::worker_loop, this));
+        }
+    }
+
+    thread_pool (const thread_pool& to_copy) = delete;
+    void operator =(const thread_pool& to_copy) = delete;
+
+    thread_pool (thread_pool&& to_move) = delete;
+    void operator =(thread_pool&& to_move) = delete;
+
+    virtual void add(function<void()> task){
+        lock_guard<mutex> lock(this->_qmutex);
+        this->_tasks.push(task);
+        this->_qempty.notify_one();
+    }
+
+    void close(){
+        this->_active.store(false);
+        this->_qempty.notify_all();
+        for(thread& t : this->_workers){
+            t.join();
+        }
+    }
+
+    virtual ~thread_pool(){
+        this->close();
+    }
+
+private:
+    void worker_loop(){
+        while(1){
+            unique_lock<mutex> lock(this->_qmutex);
+            while(this->_tasks.empty()){
+                if( !this->_active.load() ){
+                    return;
+                }
+                this->_qempty.wait(lock);
+            }
+            function<void()> next_task = this->_tasks.front();
+            this->_tasks.pop();
+            lock.unlock();
+            next_task();
+        }
+    }
+};
+} //experimental
+} //std
+#endif
