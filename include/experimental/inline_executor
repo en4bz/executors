@@ -1,0 +1,21 @@
+#ifndef INLINE_EXECUTOR_HPP
+#define INLINE_EXECUTOR_HPP
+
+#include<experimental/executor>
+
+namespace std {
+namespace experimental {
+
+class inline_executor : public executor {
+
+public:
+    inline_executor() {};
+
+    void add(function<void()> task){
+        task();
+    }
+};
+
+} //exp
+} //std
+#endif

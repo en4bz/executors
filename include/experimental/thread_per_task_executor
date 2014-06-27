@@ -1,0 +1,30 @@
+#ifndef THREAD_PER_TASK_EXECUTOR_HPP
+#define THREAD_PER_TASK_EXECUTOR_HPP
+
+#include <vector>
+#include <experimental/executor>
+
+namespace std {
+namespace experimental {
+
+class thread_per_task_executor : public executor {
+private:
+    vector<thread> _pending;
+
+public:
+    explicit thread_per_task_executor() {};
+
+    void add(function<void()> task){
+        this->_pending.emplace_back(thread(task));
+    }
+
+    ~thread_per_task_executor() {
+        for(thread& t : this->_pending)
+            t.join();
+    }
+};
+
+}
+}
+
+#endif
