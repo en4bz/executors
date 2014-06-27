@@ -1,7 +1,9 @@
 #ifndef EXECUTOR_HPP
 #define EXECUTOR_HPP
 
+#include <future>
 #include <functional>
+#include <type_traits>
 
 namespace std {
 namespace experimental {
@@ -16,6 +18,16 @@ namespace experimental {
         virtual void add_at(function<void()>) = 0;
         virtual void add_after(function<void()>) = 0;
     };
+
+    template<typename Func, typename... Args>
+    future< typename result_of<Func(Args...)>::type >
+    add(executor& ex, Func&& fn, Args... args) {
+        typedef typename result_of<Func(Args...)>::type return_type;
+        auto task = make_shared<packaged_task<return_type()>>(bind(forward<Func>(fn), forward<Args>(args)...) );
+        future<return_type> result = task->get_future();
+        ex.add([task](){ (*task)(); });
+        return result;
+    }
 }
 }
 #endif
