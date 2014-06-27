@@ -37,7 +37,7 @@ public:
     thread_pool (thread_pool&& to_move) = delete;
     void operator =(thread_pool&& to_move) = delete;
 
-    virtual void add(function<void()> task){
+    void add(function<void()> task){
         lock_guard<mutex> lock(this->_qmutex);
         this->_tasks.push(task);
         this->_qempty.notify_one();
@@ -51,8 +51,10 @@ public:
         }
     }
 
-    virtual ~thread_pool(){
-        this->close();
+    ~thread_pool(){
+        if(this->_active.load()){
+            this->close();
+        }
     }
 
 private:
