@@ -15,8 +15,8 @@ namespace experimental {
 
     class scheduled_executor : public executor {
     public:
-        virtual void add_at(function<void()>) = 0;
-        virtual void add_after(function<void()>) = 0;
+        virtual void add_at(function<void()>, chrono::steady_clock::time_point) = 0;
+        virtual void add_after(function<void()>, chrono::steady_clock::duration) = 0;
     };
 
     template<typename Func, typename... Args>
