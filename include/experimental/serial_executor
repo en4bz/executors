@@ -1,0 +1,75 @@
+#ifndef SERIAL_EXECUTOR
+#define SERIAL_EXECUTOR
+
+#include <experimental/executor>
+
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <functional>
+#include <condition_variable>
+
+namespace std {
+namespace experimental {
+
+class serial_executor : executor {
+    mutable mutex _qmutex;
+    condition_variable _qempty;
+    atomic<bool> _active;
+
+    executor* _underlying;
+    thread _scheduler;
+    queue<function<void()>> _tasks;
+
+public:
+
+    serial_executor(executor * underlying_exec)
+        : _underlying(underlying_exec), _scheduler(&serial_executor::scheduler_loop,this) {}
+
+    serial_executor (const serial_executor& to_copy) = delete;
+    void operator =(const serial_executor& to_copy) = delete;
+
+    serial_executor (serial_executor&& to_move) = delete;
+    void operator =(serial_executor&& to_move) = delete;
+
+
+    void add(function<void()> task){
+        lock_guard<mutex> lock(this->_qmutex);
+        this->_tasks.push(task);
+        this->_qempty.notify_one();
+    }
+
+    ~serial_executor(){
+        this->_active.store(false);
+        this->_qempty.notify_all();
+        this->_scheduler.join();
+    }
+
+private:
+
+    void scheduler_loop(){
+        while(1){
+            unique_lock<mutex> lock(this->_qmutex);
+            while(this->_tasks.empty()){
+                if( !this->_active.load() ){
+                    return;
+                }
+                this->_qempty.wait(lock);
+            }
+            function<void()> next_task = this->_tasks.front();
+            this->_tasks.pop();
+            lock.unlock();
+            future<void> result = experimental::add(*_underlying,next_task);
+            result.wait();
+        }
+    }
+
+};
+
+}
+}
+
+
+#endif
+
