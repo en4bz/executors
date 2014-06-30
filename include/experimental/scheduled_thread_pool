@@ -1,0 +1,114 @@
+#ifndef SCHEDULED_THREAD_POOL_HPP
+#define SCHEDULED_THREAD_POOL_HPP
+
+
+#include <experimental/executor>
+
+#include <queue>
+#include <mutex>
+#include <atomic>
+#include <thread>
+#include <vector>
+#include <chrono>
+#include <functional>
+#include <condition_variable>
+
+namespace std {
+namespace experimental {
+
+struct scheduled_task {
+    chrono::steady_clock::time_point time;
+    function<void()> task;
+
+    scheduled_task(chrono::steady_clock::time_point p, function<void()> fn) : time(p), task(fn) {}
+
+    bool operator< (const scheduled_task& other) const{
+        return this->time > other.time;
+    }
+
+    void operator()(void){
+        task();
+    }
+};
+
+class scheduled_thread_pool : scheduled_executor {
+private:
+    mutable mutex _qmutex;
+    condition_variable _qempty;
+    atomic<bool> _active;
+
+    vector<thread> _workers;
+    priority_queue<scheduled_task> _tasks;
+
+public:
+    scheduled_thread_pool (size_t num_threads = thread::hardware_concurrency() )
+        : _active(true)
+    {
+        for(size_t i = 0 ; i < num_threads; i++){
+            this->_workers.emplace_back(thread(&scheduled_thread_pool::scheduler_loop, this));
+        }
+    }
+
+    scheduled_thread_pool (const scheduled_thread_pool& to_copy) = delete;
+    void operator =(const scheduled_thread_pool& to_copy) = delete;
+
+    scheduled_thread_pool (scheduled_thread_pool&& to_move) = delete;
+    void operator =(scheduled_thread_pool&& to_move) = delete;
+
+
+    void add(function<void()> task){
+        add_at(task, chrono::steady_clock::now());
+    }
+
+
+    void add_at(function<void()> task, chrono::steady_clock::time_point when) {
+        unique_lock<mutex> lock(this->_qmutex);
+        this->_tasks.push(scheduled_task(when, task));
+        this->_qempty.notify_one();
+    }
+
+    void add_after(function<void()> task, chrono::steady_clock::duration dura) {
+        add_at(task, chrono::steady_clock::now() + dura);
+    }
+
+    int pending(void){
+        unique_lock<mutex> lock(this->_qmutex);
+        return this->_tasks.size();
+    }
+
+    ~scheduled_thread_pool(){
+        this->_active.store(false);
+        this->_qempty.notify_all();
+        for(thread& t : this->_workers){
+            t.join();
+        }
+    }
+
+private:
+
+    void scheduler_loop(){
+        while(1){
+            unique_lock<mutex> lock(this->_qmutex);
+            if( this->_tasks.empty() ){
+                if( !this->_active.load() ){
+                    return;
+                }
+                this->_qempty.wait(lock);
+            }
+            else if (this->_tasks.top().time > chrono::steady_clock::now()) {
+                this->_qempty.wait_until(lock, _tasks.top().time);
+            }
+            else{
+                function<void()> next_task = this->_tasks.top();
+                this->_tasks.pop();
+                lock.unlock();
+                next_task();
+            }
+        }
+
+    }
+};
+
+} //end exp
+} //end std
+#endif
