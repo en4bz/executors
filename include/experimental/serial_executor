@@ -18,13 +18,13 @@ class serial_executor : executor {
     condition_variable _qempty;
     atomic<bool> _active;
 
-    executor* _underlying;
+    executor& _underlying;
     thread _scheduler;
     queue<function<void()>> _tasks;
 
 public:
 
-    serial_executor(executor * underlying_exec)
+    serial_executor(executor& underlying_exec)
         : _underlying(underlying_exec), _scheduler(&serial_executor::scheduler_loop,this) {}
 
     serial_executor (const serial_executor& to_copy) = delete;
@@ -60,7 +60,7 @@ private:
             function<void()> next_task = this->_tasks.front();
             this->_tasks.pop();
             lock.unlock();
-            future<void> result = experimental::add(*_underlying,next_task);
+            future<void> result = experimental::add(this->_underlying, next_task);
             result.wait();
         }
     }
