@@ -14,6 +14,10 @@ public:
     void add(function<void()> task){
         task();
     }
+
+    size_t num_uninitiated_task() {
+        return 0;
+    }
 };
 
 } //exp

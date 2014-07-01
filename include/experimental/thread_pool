@@ -37,6 +37,10 @@ public:
     thread_pool (thread_pool&& to_move) = delete;
     void operator =(thread_pool&& to_move) = delete;
 
+    size_t num_uninitiated_task(){
+        return this->_tasks.size();
+    }
+
     void add(function<void()> task){
         lock_guard<mutex> lock(this->_qmutex);
         this->_tasks.push(task);

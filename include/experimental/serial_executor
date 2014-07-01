@@ -33,6 +33,9 @@ public:
     serial_executor (serial_executor&& to_move) = delete;
     void operator =(serial_executor&& to_move) = delete;
 
+    size_t num_uninitiated_task() {
+        return this->_tasks.size();
+    }
 
     void add(function<void()> task){
         lock_guard<mutex> lock(this->_qmutex);

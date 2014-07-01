@@ -11,6 +11,7 @@ namespace experimental {
     public:
         virtual void add(function<void()>) = 0;
         virtual ~executor() {};
+        virtual size_t num_uninitiated_task() = 0;
     };
 
     class scheduled_executor : public executor {
