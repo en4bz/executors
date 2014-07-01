@@ -31,7 +31,7 @@ It includes the following classes and functions
  
 ### Static Free Functions
 
-These functions are not found in the proposals put should prove to be extremely useful. 
+<b>Note</b>: This function has the same signature as std::async from the [concurreny_ts](https://github.com/cplusplus/concurrency_ts) working draft.
 
     template<typename F,typename... Args>
     future< typename result_of<F(Args...)>::type > add(executor& ex, F&& fn, Args&&... args);
@@ -49,10 +49,16 @@ In order to use theses classes you can simply compile with
 
 `clang --std=c++11 myfile.cpp -I path/to/this/projects/include -pthread -lstdc++`
 
+There is a collection of basic examples/tests in the `src` directory. 
+
 #### Tested With
 
- * g++ 4.6 (Won't work)
- * g++ 4.7 (Good)
- * g++ 4.8 (Good)
- * clang 3.4 (Good)
+ * <pre>`g++ 4.6`   (Won't work)</pre>
+ * <pre>`g++ 4.7`   (Good)</pre>
+ * <pre>`g++ 4.8`   (Good)</pre>
+ * <pre>`clang 3.4` (Good)</pre>
+ 
+### TODO
 
+ 1. Create more rigorous tests.
+ 2. Abstract all queuing operations into a private sync_queue class.
